@@ -1,0 +1,23 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "target": "ES5",
+    "module": "amd",
+    "lib": [
+      "es5",
+      "dom",
+      "es2015.promise"
+    ],
+    "declaration": true,
+    "strict": false,
+    "sourceMap": true,
+    "removeComments":true,
+    "outDir": "./bin",
+    "outFile": "./bin/app.js",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
