@@ -1,6 +1,12 @@
 
 function __init__(): number {
     console.log("脚本引擎环境初始化成功,当前版本 " + sys.version());
+
+    let c = io.read("test.json");
+    console.log(c);
+    let objectC = JSON.parse(c);
+    console.log(objectC);
+
     return 0
 }
 
