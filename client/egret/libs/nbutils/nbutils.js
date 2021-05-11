@@ -30,6 +30,8 @@ Intermediate V1 struct
 
 */
 var useLittleEndian = false;
+
+
 var NBPy = {
     typeof: function (o) {
         var r = Object.prototype.toString.call(o);
@@ -71,6 +73,16 @@ var NBPy = {
             encoded += '%' + bytec.toString(16);
         }
         return decodeURIComponent(encoded);
+    },
+    UINT64: function (dataview, byteOffset) {
+        // split 64-bit number into two 32-bit (4-byte) parts
+        const left =  dataview.getUint32(byteOffset, useLittleEndian);
+        const right = dataview.getUint32(byteOffset+4, useLittleEndian);
+        // combine the two 32-bit values
+        const combined = useLittleEndian? left + 2**32*right : 2**32*left + right;
+        if (!Number.isSafeInteger(combined))
+          console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost');
+        return combined;
     }
 };
 var IMDataHeaderLength = 1 + 4;
@@ -398,6 +410,7 @@ var IntermediateV2Types = {
     Bytes: 15,
     Map: 16,
     List: 17,
+    BigNumber: 18,
 };
 var TypeSwapTablesV2 = {
     "number": "Int",
@@ -487,6 +500,7 @@ var IntermediateV2Codec = {
                     return { 'o': dv.getFloat32(_offset, useLittleEndian), 'offset': _offset + 4 };
                 case IntermediateV2Types.Int64:
                 case IntermediateV2Types.Uint64:
+                    return { 'o': NBPy.UINT64(dv, _offset), 'offset': _offset + 8 };
                 case IntermediateV2Types.Float64:
                     return { 'o': dv.getFloat64(_offset, useLittleEndian), 'offset': _offset + 8 };
                 case IntermediateV2Types.True:
@@ -496,6 +510,9 @@ var IntermediateV2Codec = {
                 case IntermediateV2Types.String:
                     var s = NBPy.UNICODE(dv, _offset, elementCount);
                     return { 'o': s, 'offset': _offset + elementCount };
+                case IntermediateV2Types.BigNumber:
+                    var s = NBPy.UNICODE(dv, _offset, elementCount);
+                    return { 'o': parseInt(s, 10), 'offset': _offset + elementCount };
                 case IntermediateV2Types.Bytes:
                     var bb = new Uint8Array(dv.buffer);
                     var s = bb.slice(_offset, elementCount);
@@ -602,10 +619,12 @@ var IntermediateV2Codec = {
                     isSign = intRawValue < 0;
                     break;
                 case "number64":
-                    var rb = _fnMakeHeader(IntermediateV2Types.Int64, 0);
-                    var buf = new DataView(new ArrayBuffer(9));
-                    buf.setInt8(0, rb, useLittleEndian);
-                    buf.setFloat64(1, o, useLittleEndian);
+                    data = NBPy.UTF8(o.toString());
+                    var ss = data.byteLength;
+                    var rb = _fnMakeHeaderAndLength(IntermediateV2Types.BigNumber, ss);
+                    var buf = new Uint8Array(ss + rb.byteLength);
+                    buf.set(new Uint8Array(rb.buffer));
+                    buf.set(new Uint8Array(data.buffer), rb.byteLength);
                     return buf;
                 case "float":
                     var rb = _fnMakeHeader(IntermediateV2Types.Float32, 0);
